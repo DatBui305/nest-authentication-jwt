@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { AuthPayloadDto } from 'src/auth/dto/auth.dto';
+import { AuthPayloadDto, RegisterDto } from 'src/auth/dto/auth.dto';
+import * as bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 const fakeUsers = [
   {
@@ -15,16 +18,30 @@ const fakeUsers = [
   },
 ];
 
+const tokenBlacklist = new Set<string>();
+
 @Injectable()
 export class AuthService {
   constructor(private jwtService: JwtService) {}
 
-  validateUser({ username, password }: AuthPayloadDto) {
-    const findUser = fakeUsers.find((user) => user.username === username);
+  async validateUser({ username, password }: AuthPayloadDto) {
+    const findUser = await prisma.user.findUnique({ where: { username } });
     if (!findUser) return null;
-    if (password === findUser.password) {
-      const { password, ...user } = findUser;
-      return this.jwtService.sign(user);
+    const isMatch = await bcrypt.compare(password, findUser.password);
+    if (!isMatch) {
+      return null;
     }
+    const { password: _, ...user } = findUser;
+    return this.jwtService.sign(user);
+  }
+
+  logout(user: any) {
+    const token = this.jwtService.sign(user);
+    tokenBlacklist.add(token);
+    return { message: 'User logged out successfully' };
+  }
+
+  isTokenBlacklisted(token: string): boolean {
+    return tokenBlacklist.has(token);
   }
 }

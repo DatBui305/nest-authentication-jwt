@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from 'src/auth/auth.service';
-import { AuthPayloadDto } from 'src/auth/dto/auth.dto';
+import { AuthPayloadDto, RegisterDto } from 'src/auth/dto/auth.dto';
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { LocalGuard } from 'src/auth/guards/local.guard';
@@ -30,5 +30,11 @@ export class AuthController {
     console.log('Status method');
     console.log(req.user);
     return req.user;
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  logout(@Req() req: Request) {
+    return this.authService.logout(req.user);
   }
 }
